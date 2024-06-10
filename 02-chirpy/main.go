@@ -6,17 +6,26 @@ import (
 )
 
 func main() {
-    const filePathRoot = "."
-    const port = "8080"
+	const filepathRoot = "."
+	const port = "8080"
 
-    mux := http.NewServeMux()
-    mux.Handle("/", http.FileServer(http.Dir(filePathRoot)))
+	mux := http.NewServeMux()
+	mux.Handle("/app/*", http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
 
-    srv := &http.Server{
-        Addr: ":" + port,
-        Handler: mux,
-    }
+    //* Server ping route
+    mux.HandleFunc("/healthz", handleReadiness)
 
-    log.Printf("Serving files from %s on port: %s\n", filePathRoot, port)
-    log.Fatal(srv.ListenAndServe())
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: mux,
+	}
+
+	log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)
+	log.Fatal(srv.ListenAndServe())
+}
+
+func handleReadiness(w http.ResponseWriter, req *http.Request) {
+    w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte(http.StatusText(http.StatusOK)))
 }
