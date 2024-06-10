@@ -27,9 +27,9 @@ func main() {
 
 
     //* Server ping route
-    mux.HandleFunc("GET /healthz", handleReadiness)
-    mux.HandleFunc("GET /metrics", apiCfg.handleMetrics)
-    mux.HandleFunc("/reset", apiCfg.handleResetFileHits)
+    mux.HandleFunc("GET /api/healthz", handleReadiness)
+    mux.HandleFunc("GET /api/metrics", apiCfg.handleMetrics)
+    mux.HandleFunc("/api/reset", apiCfg.handleResetFileHits)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
