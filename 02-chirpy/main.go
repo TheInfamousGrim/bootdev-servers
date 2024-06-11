@@ -31,6 +31,9 @@ func main() {
     mux.HandleFunc("GET /api/metrics", apiCfg.handleMetrics)
     mux.HandleFunc("/api/reset", apiCfg.handleResetFileHits)
 
+    //* Auth Routes
+    mux.HandleFunc("GET /admin/metrics", apiCfg.handleAdminMetrics)
+
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: mux,
@@ -59,4 +62,20 @@ func (cfg *apiConfig) handleResetFileHits(w http.ResponseWriter, req *http.Reque
     w.Header().Add("Content-Type", "text/plain; charset=utf-8")
     w.WriteHeader(http.StatusOK)
     w.Write([]byte(fmt.Sprintf("Hits %d", cfg.fileserverHits)))
+}
+
+func (cfg *apiConfig) handleAdminMetrics(w http.ResponseWriter, req *http.Request) {
+    w.Header().Add("Content-Type", "text/html")
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte(fmt.Sprintf(`
+    <html>
+    
+    <body>
+        <h1>Welcome, Chirpy Admin</h1> 
+        <p>Chirpy has been visited %d times!</p>
+    </body>    
+
+    </html> 
+    `, cfg.fileserverHits)))
+    
 }
