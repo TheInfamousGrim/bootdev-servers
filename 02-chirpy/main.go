@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type apiConfig struct {
@@ -74,7 +75,7 @@ func (cfg *apiConfig) handleValidateChirp(w http.ResponseWriter, req *http.Reque
 		Error string `json:"error"`
 	}
 	type succResp struct {
-		Valid bool `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}
 	w.Header().Set("Content-Type", "application/json")
 
@@ -90,6 +91,8 @@ func (cfg *apiConfig) handleValidateChirp(w http.ResponseWriter, req *http.Reque
 		w.Write(dat)
 		return
 	}
+
+	// Validate chrip length
 	if len(params.Body) > 140 {
 		w.WriteHeader(400)
 		respBody := errResp{
@@ -100,9 +103,30 @@ func (cfg *apiConfig) handleValidateChirp(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	// Validate profane words
+	splitWords := strings.Split(params.Body, " ")
+	astxWord := "****"
+	for idx, word := range splitWords {
+		lowerCaseWord := strings.ToLower(word)
+		switch {
+		case lowerCaseWord == "kerfuffle":
+			splitWords[idx] = astxWord
+			continue
+		case lowerCaseWord == "sharbert":
+			splitWords[idx] = astxWord
+			continue
+		case lowerCaseWord == "fornax":
+			splitWords[idx] = astxWord
+			continue
+		default:
+			continue
+		}
+	}
+	cleanedWords := strings.Join(splitWords, " ")
+
 	w.WriteHeader(200)
 	respBody := succResp{
-		Valid: true,
+		CleanedBody: cleanedWords,
 	}
 	dat, _ := json.Marshal(respBody)
 	w.Write(dat)
