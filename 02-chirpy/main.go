@@ -1,18 +1,16 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 )
 
-type apiConfig struct {
+type ApiConfig struct {
 	fileserverHits int
 }
 
-func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
+func (cfg *ApiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		cfg.fileserverHits++
 		next.ServeHTTP(w, req)
@@ -22,7 +20,7 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 func main() {
 	const filepathRoot = "."
 	const port = "8080"
-	apiCfg := apiConfig{fileserverHits: 0}
+	apiCfg := ApiConfig{fileserverHits: 0}
 
 	mux := http.NewServeMux()
 	mux.Handle("/app/*", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
@@ -31,7 +29,9 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", handleReadiness)
 	mux.HandleFunc("GET /api/metrics", apiCfg.handleMetrics)
 	mux.HandleFunc("/api/reset", apiCfg.handleResetFileHits)
-	mux.HandleFunc("POST /api/validate_chirp", apiCfg.handleValidateChirp)
+	//* Chirps route
+	mux.HandleFunc("GET /api/chirps", apiCfg.handleGetChirp)
+	mux.HandleFunc("POST /api/chirps", apiCfg.HandleCreateChirps)
 
 	//* Auth Routes
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handleAdminMetrics)
@@ -51,13 +51,13 @@ func handleReadiness(w http.ResponseWriter, req *http.Request) {
 	w.Write([]byte(http.StatusText(http.StatusOK)))
 }
 
-func (cfg *apiConfig) handleMetrics(w http.ResponseWriter, req *http.Request) {
+func (cfg *ApiConfig) handleMetrics(w http.ResponseWriter, req *http.Request) {
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits)))
 }
 
-func (cfg *apiConfig) handleResetFileHits(w http.ResponseWriter, req *http.Request) {
+func (cfg *ApiConfig) handleResetFileHits(w http.ResponseWriter, req *http.Request) {
 	// Reset the file server hits
 	cfg.fileserverHits = 0
 
@@ -66,73 +66,7 @@ func (cfg *apiConfig) handleResetFileHits(w http.ResponseWriter, req *http.Reque
 	w.Write([]byte(fmt.Sprintf("Hits %d", cfg.fileserverHits)))
 }
 
-func (cfg *apiConfig) handleValidateChirp(w http.ResponseWriter, req *http.Request) {
-	// Structs
-	type parameters struct {
-		Body string `json:"body"`
-	}
-	type errResp struct {
-		Error string `json:"error"`
-	}
-	type succResp struct {
-		CleanedBody string `json:"cleaned_body"`
-	}
-	w.Header().Set("Content-Type", "application/json")
-
-	decoder := json.NewDecoder(req.Body)
-	params := parameters{}
-	err := decoder.Decode(&params)
-	if err != nil {
-		w.WriteHeader(500)
-		respBody := errResp{
-			Error: "Something went wrong",
-		}
-		dat, _ := json.Marshal(respBody)
-		w.Write(dat)
-		return
-	}
-
-	// Validate chrip length
-	if len(params.Body) > 140 {
-		w.WriteHeader(400)
-		respBody := errResp{
-			Error: "Chirp is too long",
-		}
-		dat, _ := json.Marshal(respBody)
-		w.Write(dat)
-		return
-	}
-
-	// Validate profane words
-	splitWords := strings.Split(params.Body, " ")
-	astxWord := "****"
-	for idx, word := range splitWords {
-		lowerCaseWord := strings.ToLower(word)
-		switch {
-		case lowerCaseWord == "kerfuffle":
-			splitWords[idx] = astxWord
-			continue
-		case lowerCaseWord == "sharbert":
-			splitWords[idx] = astxWord
-			continue
-		case lowerCaseWord == "fornax":
-			splitWords[idx] = astxWord
-			continue
-		default:
-			continue
-		}
-	}
-	cleanedWords := strings.Join(splitWords, " ")
-
-	w.WriteHeader(200)
-	respBody := succResp{
-		CleanedBody: cleanedWords,
-	}
-	dat, _ := json.Marshal(respBody)
-	w.Write(dat)
-}
-
-func (cfg *apiConfig) handleAdminMetrics(w http.ResponseWriter, req *http.Request) {
+func (cfg *ApiConfig) handleAdminMetrics(w http.ResponseWriter, req *http.Request) {
 	w.Header().Add("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf(`
